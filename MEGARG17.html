@@ -3,57 +3,100 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MEGARG - 時空學園ARG系統</title>
+    <title>時空起點 - MEGARG</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        :root { --primary-color: #4a148c; --accent-color: #28a745; --bg-color: #f8f9fa; --text-color: #333; }
+        :root { --primary-color: #b71c1c; --accent-color: #ff9800; --bg-color: #fff8f8; --panel-bg: #ffffff; --text-color: #3e0000; --border-color: #ffcdd2; --map-filter: none; }
         html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg-color); color: var(--text-color); }
         body { display: flex; flex-direction: column; }
+        
+        #start-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 99999; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; transition: opacity 0.8s ease, transform 0.8s ease; }
+        .start-bg { position: absolute; top: -10%; left: -10%; width: 120%; height: 120%; background-size: cover; background-position: center; opacity: 0.5; z-index: -1; animation: slowZoom 20s linear infinite alternate; background-image: url('https://i.ibb.co/8hvQ7Qm/unnamed-11.jpg'); }
+        @keyframes slowZoom { from { transform: scale(1); } to { transform: scale(1.1); } }
+        .start-content { z-index: 1; text-align: center; color: white; display: flex; flex-direction: column; align-items: center; justify-content: space-between; height: 80%; width: 100%; }
+        .start-title-box { margin-top: 15vh; text-shadow: 0 4px 15px rgba(0,0,0,0.8); padding: 0 20px; }
+        .start-title { font-size: 3.5em; font-weight: 900; margin: 0; line-height: 1.1; letter-spacing: 2px; }
+        .start-subtitle { font-size: 1.4em; margin-top: 15px; font-weight: bold; color: #e0e0e0; letter-spacing: 5px; text-shadow: 0 2px 5px rgba(0,0,0,0.8); }
+        .btn-play { background: linear-gradient(45deg, var(--accent-color), #20c997); color: white; border: none; padding: 18px 60px; border-radius: 50px; font-size: 1.8em; font-weight: bold; cursor: pointer; box-shadow: 0 10px 20px rgba(0,0,0,0.4); transition: 0.3s; margin-top: auto; margin-bottom: 5vh; animation: pulse 2s infinite; letter-spacing: 2px; }
+        .btn-play:active { transform: scale(0.95); }
+        @keyframes pulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(40,167,69, 0.7); } 70% { transform: scale(1.05); box-shadow: 0 0 0 15px rgba(40,167,69, 0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(40,167,69, 0); } }
+        .start-footer { position: absolute; bottom: 25px; text-align: center; width: 100%; font-size: 0.85em; color: rgba(255,255,255,0.9); display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 1; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+        .start-footer img { height: 35px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.5); }
+        .fade-out { opacity: 0 !important; pointer-events: none; transform: scale(1.1); }
+
         .top-banner { background: var(--primary-color); color: white; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: bold; font-size: 1.1em; z-index: 10000; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         .top-banner img { height: 35px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.5); }
-        .tab-bar { display: flex; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 9999; position: relative; flex-shrink: 0; }
-        .tab-btn { flex: 1; padding: 16px 0; border: none; background: none; font-size: 15px; font-weight: bold; color: #666; cursor: pointer; border-bottom: 4px solid transparent; transition: all 0.2s ease; -webkit-tap-highlight-color: transparent; }
-        .tab-btn.active { color: var(--primary-color); border-bottom: 4px solid var(--primary-color); }
+        .tab-bar { display: flex; background: var(--panel-bg); box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 9999; position: relative; flex-shrink: 0; border-bottom: 1px solid var(--border-color); }
+        .tab-btn { flex: 1; padding: 16px 0; border: none; background: none; font-size: 15px; font-weight: bold; color: var(--text-color); opacity: 0.6; cursor: pointer; border-bottom: 4px solid transparent; transition: all 0.2s ease; -webkit-tap-highlight-color: transparent; }
+        .tab-btn.active { color: var(--primary-color); opacity: 1; border-bottom: 4px solid var(--primary-color); }
         .content-container { flex: 1; position: relative; overflow: hidden; }
         .tab-content { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: none; overflow-y: auto; -webkit-overflow-scrolling: touch; background: var(--bg-color); scroll-behavior: smooth; }
         .tab-content.active { display: block; }
-        #npc-frame { width: 100%; height: 100%; border: none; }
+        
+        #tab0.active { display: flex !important; flex-direction: column; }
+        .npc-banner { flex: 0 0 20%; background: linear-gradient(135deg, var(--panel-bg) 0%, var(--bg-color) 100%); border-bottom: 2px solid var(--border-color); display: flex; align-items: center; padding: 0 6%; box-shadow: 0 4px 15px rgba(0,0,0,0.03); z-index: 10; position: relative; }
+        .npc-banner::after { content: ''; position: absolute; bottom: -2px; left: 0; width: 100%; height: 2px; background: linear-gradient(90deg, var(--primary-color), var(--accent-color)); opacity: 0.5; }
+        .npc-avatar { width: 15vw; height: 15vw; max-width: 80px; max-height: 80px; min-width: 60px; min-height: 60px; border-radius: 50%; object-fit: cover; border: 3px solid var(--panel-bg); box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-right: 5%; background: var(--panel-bg); }
+        .npc-info { display: flex; flex-direction: column; justify-content: center; }
+        .npc-name { font-size: clamp(1.2em, 4vw, 1.5em); font-weight: 800; color: var(--text-color); margin: 0 0 5px 0; letter-spacing: 0.5px; }
+        .npc-desc { font-size: clamp(0.85em, 3vw, 1em); color: var(--text-color); opacity: 0.7; margin: 0; font-weight: 500; }
+        .chat-iframe-container { flex: 1; width: 100%; position: relative; }
+        #npc-frame { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
+        .chat-iframe-full { width: 100%; height: 100%; border: none; }
+
         .map-wrapper { display: flex; flex-direction: column; height: 100%; }
-        #map { flex: 1; min-height: 250px; width: 100%; border-bottom: 2px solid #ddd; z-index: 1; }
-        .info-panel { padding: 20px; background: #fff; box-shadow: 0 -5px 15px rgba(0,0,0,0.05); z-index: 2; border-top-left-radius: 20px; border-top-right-radius: 20px; margin-top: -15px; }
-        .status-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-        #target-name { font-weight: 800; font-size: 1.2em; color: #1a1a1a; }
+        #map { flex: 1; min-height: 250px; width: 100%; z-index: 1; filter: var(--map-filter); border-bottom: 1px solid var(--border-color); }
+        .info-panel { padding: 20px; background: var(--panel-bg); box-shadow: 0 -5px 15px rgba(0,0,0,0.05); z-index: 2; border-top-left-radius: 20px; border-top-right-radius: 20px; margin-top: -15px; border-top: 1px solid var(--border-color); }
+        .status-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
+        #target-name { font-weight: 800; font-size: 1.2em; color: var(--text-color); }
         #dist-display { font-size: 1.4em; color: var(--primary-color); font-weight: bold; }
-        #bearing-display { color: #666; font-size: 0.95em; margin-bottom: 15px; }
-        .btn-check { width: 100%; padding: 16px; background: var(--primary-color); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,123,255,0.2); transition: transform 0.1s; cursor: pointer; }
+        #bearing-display { color: var(--text-color); opacity: 0.8; font-size: 0.95em; margin-bottom: 15px; }
+        .btn-check { width: 100%; padding: 16px; background: var(--primary-color); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.2); transition: transform 0.1s; cursor: pointer; }
         .btn-check:active { transform: scale(0.98); }
-        .btn-check:disabled { background: #9bbfe3; box-shadow: none; cursor: not-allowed; }
+        .btn-check:disabled { opacity: 0.5; cursor: not-allowed; }
+        
         .story-container { padding: 20px; text-align: center; max-width: 600px; margin: 0 auto; }
-        .puzzle-box { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 6px 24px rgba(0,0,0,0.08); margin-bottom: 20px; animation: fadeIn 0.3s ease; }
+        .puzzle-box { background: var(--panel-bg); padding: 25px; border-radius: 16px; box-shadow: 0 6px 24px rgba(0,0,0,0.08); margin-bottom: 20px; animation: fadeIn 0.3s ease; border: 1px solid var(--border-color); }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .story-title { color: var(--primary-color); font-size: 1.3em; margin-top: 0; margin-bottom: 15px; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; }
-        .story-text { text-align: left; line-height: 1.6; color: #4a4a4a; font-size: 1.05em; }
-        .puzzle-img { width: 100%; border-radius: 12px; margin: 20px 0; object-fit: cover; border: 1px solid #eaeaea; }
+        .story-title { color: var(--primary-color); font-size: 1.3em; margin-top: 0; margin-bottom: 15px; border-bottom: 2px solid var(--border-color); padding-bottom: 10px; }
+        .story-text { text-align: left; line-height: 1.6; color: var(--text-color); font-size: 1.05em; }
+        .puzzle-img { width: 100%; border-radius: 12px; margin: 20px 0; object-fit: cover; border: 1px solid var(--border-color); }
         .puzzle-img[src=""] { display: none; }
-        .puzzle-question { font-weight: bold; color: #2c3e50; font-size: 1.1em; margin-bottom: 15px; text-align: left;}
-        input[type="text"] { width: 100%; box-sizing: border-box; padding: 14px; margin-bottom: 20px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 16px; text-align: center; transition: border-color 0.2s; }
+        .puzzle-question { font-weight: bold; color: var(--text-color); font-size: 1.1em; margin-bottom: 15px; text-align: left;}
+        input[type="text"] { width: 100%; box-sizing: border-box; padding: 14px; margin-bottom: 20px; background: var(--bg-color); border: 2px solid var(--border-color); border-radius: 10px; font-size: 16px; text-align: center; transition: border-color 0.2s; color: var(--text-color); }
         input[type="text"]:focus { border-color: var(--primary-color); outline: none; }
-        .submit-btn { width: 100%; background: var(--accent-color); color: white; padding: 14px; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; box-shadow: 0 4px 6px rgba(40,167,69,0.2); cursor: pointer; transition: 0.2s; }
+        .submit-btn { width: 100%; background: var(--accent-color); color: white; padding: 14px; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.2); cursor: pointer; transition: 0.2s; }
         .submit-btn:active { transform: scale(0.98); }
-        .locked-msg { margin-top: 50vh; transform: translateY(-50%); color: #888; display: flex; flex-direction: column; align-items: center; }
+        .locked-msg { margin-top: 50vh; transform: translateY(-50%); color: var(--text-color); opacity: 0.5; display: flex; flex-direction: column; align-items: center; }
         .locked-icon { font-size: 3em; margin-bottom: 15px; }
         .branch-options { display: flex; flex-direction: column; gap: 15px; margin-top: 20px; }
-        .branch-btn { padding: 16px; background: #f8f9fa; border: 2px solid var(--primary-color); color: var(--primary-color); border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.2s; text-align: left; display: flex; align-items: center; justify-content: space-between; }
+        .branch-btn { padding: 16px; background: var(--bg-color); border: 2px solid var(--primary-color); color: var(--primary-color); border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.2s; text-align: left; display: flex; align-items: center; justify-content: space-between; }
         .branch-btn::after { content: '→'; font-size: 1.2em; }
         .branch-btn:active { background: var(--primary-color); color: white; }
-        .success-banner { background: #d4edda; color: #155724; padding: 15px; border-radius: 10px; margin-bottom: 20px; font-weight: bold; border: 1px solid #c3e6cb; }
+        .success-banner { background: var(--accent-color); color: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .arrow-icon { font-size: 16px; color: var(--primary-color); text-align: center; line-height: 1; text-shadow: 1px 1px 2px white; }
+        #record-map { filter: var(--map-filter); border: 2px solid var(--border-color); }
     </style>
 </head>
 <body>
+    <div id="start-screen">
+        <div class="start-bg"></div>
+        <div class="start-content">
+            <div class="start-title-box">
+                <h1 class="start-title">時空起點</h1>
+                <div class="start-subtitle">時空探秘吧!</div>
+            </div>
+            <button class="btn-play" onclick="startGame()">PLAY</button>
+        </div>
+        <div class="start-footer">
+            <img src="https://i.ibb.co/HLhqbPxD/unnamed.png" alt="Logo">
+            <span>©Copyright 2026 NTUSTMEG</span>
+        </div>
+    </div>
+
     <div class="top-banner">
         <img src="https://i.ibb.co/HLhqbPxD/unnamed.png" alt="Logo">
-        <div>MEGARG <span style="font-size: 0.6em; font-weight: normal; opacity: 0.8; display: block; line-height: 1.2;">©Copyright 2026 NTUSTMEG</span></div>
+        <div>時空起點 <span style="font-size: 0.6em; font-weight: normal; opacity: 0.8; display: block; line-height: 1.2;">©Copyright 2026 NTUSTMEG</span></div>
     </div>
     <div class="tab-bar">
         <button class="tab-btn" onclick="showTab(0)">對話</button>
@@ -62,7 +105,18 @@
         <button class="tab-btn" onclick="showTab(3)">紀錄</button>
     </div>
     <div class="content-container">
-        <div id="tab0" class="tab-content"><iframe id="npc-frame" src="https://gptmega.ntustmeg.com/#/login"></iframe></div>
+        <div id="tab0" class="tab-content">
+                <div class="npc-banner">
+                    <img src="https://i.ibb.co/fV5TYM9n/4c2a7ddb-deb2-4875-8f86-e8eddd47a4cd.jpg" class="npc-avatar" onerror="this.src='https://i.ibb.co/HLhqbPxD/unnamed.png'">
+                    <div class="npc-info">
+                        <h3 class="npc-name">時空導師</h3>
+                        <p class="npc-desc">幫助你解決困惑</p>
+                    </div>
+                </div>
+                <div class="chat-iframe-container">
+                    <iframe id="npc-frame" src="https://gptmega.ntustmeg.com/#/login"></iframe>
+                </div>
+                </div>
         <div id="tab1" class="tab-content">
             <div class="map-wrapper">
                 <div id="map"></div>
@@ -78,9 +132,9 @@
         </div>
         <div id="tab3" class="tab-content">
             <div style="padding: 20px;">
-                <div id="record-map" style="display:none; width: 100%; height: 250px; border-radius: 12px; margin-bottom: 20px; border: 2px solid #ddd; z-index: 1;"></div>
+                <div id="record-map" style="display:none; width: 100%; height: 250px; border-radius: 12px; margin-bottom: 20px; z-index: 1;"></div>
                 <div class="story-container" id="record-content" style="padding: 0;">
-                    <div class="locked-msg" style="margin-top: 20vh; color: #888;">尚無通關紀錄</div>
+                    <div class="locked-msg">尚無通關紀錄</div>
                 </div>
             </div>
         </div>
@@ -95,14 +149,13 @@
         let clearedStagesRecord = []; 
         let recordMap = null, recordMarkers = [], recordLines = [], recordArrows = [];
         
-        // 提示與計分系統變數
         let hintTimerInterval = null;
         let currentScore = 0;
         let totalMaxScore = 0;
         
-        // 初始化計算遊戲總可能得分
+        // 修正：將所有關卡的分數（包含結局關卡）都加入總滿分計算中
         Object.values(gameStages).forEach(s => {
-            if (!s.isEnd) totalMaxScore += (s.score !== undefined ? s.score : 1);
+            totalMaxScore += (s.score !== undefined ? s.score : 1);
         });
 
         window.onload = () => { 
@@ -110,6 +163,14 @@
             renderTaskContent(); 
             renderRecord(); 
         };
+
+        function startGame() {
+            const startScreen = document.getElementById('start-screen');
+            startScreen.classList.add('fade-out');
+            setTimeout(() => {
+                startScreen.style.display = 'none';
+            }, 800);
+        }
 
         function showTab(index) {
             const contents = document.querySelectorAll('.tab-content');
@@ -137,11 +198,8 @@
             return sectors[Math.round(brng / 45) % 8];
         }
 
-        // YouTube 無追蹤網域與實體備用按鈕解析功能
         function getMediaHtml(url) {
             if (!url) return '';
-            
-            // 修復正規表達式在樣板字串中的跳脫問題
             const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
             if (ytMatch) {
                 const vid = ytMatch[1];
@@ -150,7 +208,6 @@
                 </div>
                 <a href="${url}" target="_blank" style="display:block; text-align:center; background:#cc0000; color:white; padding:12px; border-radius:8px; text-decoration:none; font-weight:bold; margin-bottom:20px; box-shadow:0 4px 6px rgba(255,0,0,0.2);">🎬 點擊在 YouTube 開啟影片</a>`;
             }
-            
             return `<img src="${url}" class="puzzle-img" onerror="this.style.display='none';">`;
         }
 
@@ -225,14 +282,13 @@
             map.fitBounds(bounds, { padding: [40, 40] });
         }
 
-        // 動態倒數計時與提示解鎖系統
         function startHintTimer(seconds, hintImg, hintText) {
             clearInterval(hintTimerInterval);
             let timeLeft = seconds;
             const hintDiv = document.getElementById('hint-container');
             if(!hintDiv) return;
             
-            hintDiv.innerHTML = `<div style="margin-top:20px; padding:15px; background:#fff3cd; border:1px solid #ffeeba; border-radius:8px; text-align:center; color:#856404; font-weight:bold;">⏳ 提示將於 <span id="hint-countdown" style="color:#dc3545; font-size:1.2em;">${timeLeft}</span> 秒後解鎖...</div>`;
+            hintDiv.innerHTML = `<div style="margin-top:20px; padding:15px; background:var(--bg-color); border:1px solid var(--accent-color); border-radius:8px; text-align:center; color:var(--text-color); font-weight:bold;">⏳ 提示將於 <span id="hint-countdown" style="color:var(--accent-color); font-size:1.2em;">${timeLeft}</span> 秒後解鎖...</div>`;
             hintDiv.style.display = 'block';
 
             hintTimerInterval = setInterval(() => {
@@ -243,7 +299,7 @@
                 if(timeLeft <= 0) {
                     clearInterval(hintTimerInterval);
                     let hintMedia = getMediaHtml(hintImg);
-                    hintDiv.innerHTML = `<div style="margin-top:20px; padding:20px; background:#e2e3e5; border:1px solid #d6d8db; border-radius:10px; animation:fadeIn 0.5s ease;"><h4 style="color:#383d41; margin-top:0; border-bottom:1px solid #c8cbcf; padding-bottom:10px;">💡 關卡提示</h4>${hintMedia}<p style="color:#383d41; font-size:1em; margin-bottom:0; text-align:left;">${hintText || '無文字說明'}</p></div>`;
+                    hintDiv.innerHTML = `<div style="margin-top:20px; padding:20px; background:var(--bg-color); border:1px solid var(--border-color); border-radius:10px; animation:fadeIn 0.5s ease;"><h4 style="color:var(--text-color); margin-top:0; border-bottom:1px solid var(--border-color); padding-bottom:10px;">💡 關卡提示</h4>${hintMedia}<p style="color:var(--text-color); font-size:1em; margin-bottom:0; text-align:left;">${hintText || '無文字說明'}</p></div>`;
                 }
             }, 1000);
         }
@@ -251,16 +307,11 @@
         function renderTaskContent() {
             const container = document.getElementById('puzzle-content');
             const stage = gameStages[currentStageId];
-            
-            // 防呆保護：若未抓到關卡則直接中斷
             if (!stage) return;
             
             const targetRadius = stage.triggerRadius !== undefined ? stage.triggerRadius : 150;
-            
-            // 清除之前的計時器
             clearInterval(hintTimerInterval);
 
-            // 加上大括號 { } 形成獨立作用域，防止嚴格的瀏覽器在 switch 中報錯導致畫面空白
             switch(currentPhase) {
                 case 'PRELUDE': {
                     const pMediaHtml = getMediaHtml(stage.preludeImg);
@@ -269,14 +320,14 @@
                 }
                 case 'NAVIGATING': {
                     const navMediaHtml = getMediaHtml(stage.preludeImg);
-                    container.innerHTML = `<div class="puzzle-box"><h2 class="story-title">📜 ${stage.preludeTitle}</h2>${navMediaHtml}<p class="story-text">${stage.preludeStory||'未設定說明'}</p><div style="margin-top: 20px; padding: 15px; background: #e8f4fd; border: 1px solid #b8daff; border-radius: 8px; text-align: center;"><p style="margin: 0 0 10px 0; color: #004085; font-weight: bold;">📍 導航中：請前往指定地點<br><span style="font-size:0.9em;font-weight:normal;color:#444;">進入範圍 ${targetRadius} 公尺內，系統將自動解鎖現場任務</span></p><button class="btn-check" style="width:100%; padding:12px; font-size:1.05em;" onclick="showTab(1)">查看地圖指引</button></div></div>`;
+                    container.innerHTML = `<div class="puzzle-box"><h2 class="story-title">📜 ${stage.preludeTitle}</h2>${navMediaHtml}<p class="story-text">${stage.preludeStory||'未設定說明'}</p><div style="margin-top: 20px; padding: 15px; background: var(--bg-color); border: 1px solid var(--primary-color); border-radius: 8px; text-align: center;"><p style="margin: 0 0 10px 0; color: var(--text-color); font-weight: bold;">📍 導航中：請前往指定地點<br><span style="font-size:0.9em;font-weight:normal;opacity:0.8;">進入範圍 ${targetRadius} 公尺內，系統將自動解鎖現場任務</span></p><button class="btn-check" style="width:100%; padding:12px; font-size:1.05em;" onclick="showTab(1)">查看地圖指引</button></div></div>`;
                     break;
                 }
                 case 'PUZZLE': {
                     const sMediaHtml = getMediaHtml(stage.img);
                     let hintHtml = '<div id="hint-container" style="display:none;"></div>';
                     
-                    container.innerHTML = `<div class="puzzle-box"><h3 class="story-title">📖 抵達現場：發現線索</h3><p class="story-text">${stage.story||''}</p>${sMediaHtml}<div style="height: 1px; background: #eee; margin: 25px 0;"></div><div class="puzzle-question">🧩 現場謎題：<br><span style="font-weight:normal; color:#555;">${stage.puzzle||''}</span></div><input type="text" id="ans-input" placeholder="輸入答案..."><button class="submit-btn" onclick="checkAnswer()">驗證答案</button>${hintHtml}</div>`;
+                    container.innerHTML = `<div class="puzzle-box"><h3 class="story-title">📖 抵達現場：發現線索</h3><p class="story-text">${stage.story||''}</p>${sMediaHtml}<div style="height: 1px; background: var(--border-color); margin: 25px 0;"></div><div class="puzzle-question">🧩 現場謎題：<br><span style="font-weight:normal; opacity:0.8;">${stage.puzzle||''}</span></div><input type="text" id="ans-input" placeholder="輸入答案..."><button class="submit-btn" onclick="checkAnswer()">驗證答案</button>${hintHtml}</div>`;
                     
                     if (stage.hintTime > 0) {
                         startHintTimer(Math.floor(stage.hintTime * 60), stage.hintImg, stage.hintText);
@@ -299,7 +350,7 @@
                 }
                 case 'END': {
                     const eMediaHtml = getMediaHtml(stage.endImg);
-                    container.innerHTML = `<div class="puzzle-box"><h2 style="color:var(--accent-color)">🎉 遊戲通關！</h2>${eMediaHtml}<p class="story-text" style="text-align:left;">${stage.endStory||'恭喜完成所有任務！'}</p><div style="background:#e8f5e9; color:#155724; font-size:1.2em; font-weight:bold; padding:15px; border-radius:8px; margin:20px 0; border:1px solid #c3e6cb;">最終總得分：${currentScore} / ${totalMaxScore} 分</div><button class="submit-btn" style="margin-top:20px;" onclick="restartGame()">↺ 從頭再玩一次</button></div>`;
+                    container.innerHTML = `<div class="puzzle-box"><h2 style="color:var(--accent-color)">🎉 遊戲通關！</h2>${eMediaHtml}<p class="story-text" style="text-align:left;">${stage.endStory||'恭喜完成所有任務！'}</p><div style="background:var(--bg-color); color:var(--text-color); font-size:1.2em; font-weight:bold; padding:15px; border-radius:8px; margin:20px 0; border:1px solid var(--primary-color);">最終總得分：${currentScore} / ${totalMaxScore} 分</div><button class="submit-btn" style="margin-top:20px;" onclick="restartGame()">↺ 從頭再玩一次</button></div>`;
                     break;
                 }
             }
@@ -311,23 +362,23 @@
             
             if (clearedStagesRecord.length === 0) {
                 mapContainer.style.display = 'none';
-                container.innerHTML = '<div class="locked-msg" style="margin-top: 20vh; color: #888;">尚無通關紀錄</div>';
+                container.innerHTML = '<div class="locked-msg" style="margin-top: 20vh;">尚無通關紀錄</div>';
                 return;
             }
             
             mapContainer.style.display = 'block';
-            let html = `<div style="background:#d4edda; color:#155724; padding:15px; border-radius:10px; margin-bottom:20px; font-weight:bold; border:1px solid #c3e6cb; text-align:center; font-size:1.2em; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">目前總得分：${currentScore} / ${totalMaxScore} 分</div>`;
-            html += '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:2px solid #f0f0f0; padding-bottom:10px;"><h2 class="story-title" style="margin:0; border:none; padding:0;">📖 冒險紀錄</h2><button onclick="exportRecord()" style="background:#17a2b8; color:white; border:none; padding:8px 12px; border-radius:6px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1); transition:0.2s;">📥 匯出 (TXT)</button></div>';
+            let html = `<div style="background:var(--primary-color); color:#fff; padding:15px; border-radius:10px; margin-bottom:20px; font-weight:bold; text-align:center; font-size:1.2em; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">目前總得分：${currentScore} / ${totalMaxScore} 分</div>`;
+            html += '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:2px solid var(--border-color); padding-bottom:10px;"><h2 class="story-title" style="margin:0; border:none; padding:0;">📖 冒險紀錄</h2><button onclick="exportRecord()" style="background:var(--accent-color); color:white; border:none; padding:8px 12px; border-radius:6px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1); transition:0.2s;">📥 匯出 (TXT)</button></div>';
             
             clearedStagesRecord.forEach((record, index) => {
                 html += `<div class="puzzle-box" style="text-align: left; margin-bottom: 15px; padding: 15px; border-left: 5px solid var(--primary-color);">
                     <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px;">
                         <h3 style="color:var(--primary-color); margin:0; font-size:1.1em;">${index + 1}. ${record.name}</h3>
-                        <span style="font-size:0.8em; color:#888;">${record.timestamp}</span>
+                        <span style="font-size:0.8em; color:var(--text-color); opacity:0.6;">${record.timestamp}</span>
                     </div>
-                    <p style="font-size: 0.9em; color: #555; margin: 5px 0;"><b>簡報：</b>${record.preludeStory || '無'}</p>
-                    <p style="font-size: 0.9em; color: #555; margin: 5px 0;"><b>謎題：</b>${record.puzzle || '無'}</p>
-                    <p style="font-size: 0.9em; color: var(--accent-color); margin: 5px 0;"><b>答案：</b>${record.answer || '無'} <span style="background:#e8f5e9; padding:2px 6px; border-radius:4px; margin-left:10px;">(得分: ${record.score})</span></p>
+                    <p style="font-size: 0.9em; color: var(--text-color); opacity: 0.9; margin: 5px 0;"><b>簡報：</b>${record.preludeStory || '無'}</p>
+                    <p style="font-size: 0.9em; color: var(--text-color); opacity: 0.9; margin: 5px 0;"><b>謎題：</b>${record.puzzle || '無'}</p>
+                    <p style="font-size: 0.9em; color: var(--accent-color); margin: 5px 0;"><b>答案：</b>${record.answer || '無'} <span style="background:var(--bg-color); color:var(--text-color); padding:2px 6px; border-radius:4px; margin-left:10px;">(得分: ${record.score})</span></p>
                 </div>`;
             });
             container.innerHTML = html;
@@ -423,7 +474,6 @@
                 const now = new Date();
                 const timeString = now.getFullYear() + '/' + (now.getMonth()+1).toString().padStart(2, '0') + '/' + now.getDate().toString().padStart(2, '0') + ' ' + now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
 
-                // 答對計分
                 currentScore += stage.score;
 
                 clearedStagesRecord.push({
