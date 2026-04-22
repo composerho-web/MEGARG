@@ -76,6 +76,18 @@
         .success-banner { background: var(--accent-color); color: white; padding: 15px; border-radius: 10px; margin-bottom: 20px; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .arrow-icon { font-size: 16px; color: var(--primary-color); text-align: center; line-height: 1; text-shadow: 1px 1px 2px white; }
         #record-map { filter: var(--map-filter); border: 2px solid var(--border-color); }
+
+        .custom-modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); z-index: 100000; display: none; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.3s; padding: 20px; }
+        .custom-modal-overlay.open { display: flex; opacity: 1; }
+        .custom-modal { background: var(--panel-bg); border-radius: 12px; width: 100%; max-width: 350px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); overflow: hidden; transform: scale(0.9); transition: transform 0.3s; border: 1px solid var(--border-color); }
+        .custom-modal-overlay.open .custom-modal { transform: scale(1); }
+        .custom-modal-header { background: var(--primary-color); color: white; padding: 15px 20px; font-weight: bold; font-size: 1.1em; text-align: center; }
+        .custom-modal-body { padding: 25px 20px; color: var(--text-color); font-size: 1.05em; line-height: 1.5; white-space: pre-wrap; text-align: center; }
+        .custom-modal-footer { padding: 15px 20px; border-top: 1px solid var(--border-color); background: var(--bg-color); display: flex; justify-content: center; gap: 10px; }
+        .custom-btn { padding: 10px 25px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 1.05em; width: 100%; }
+        .custom-btn-ok { background: var(--accent-color); color: white; }
+        .custom-btn-cancel { background: #6c757d; color: white; }
+        .custom-btn:active { transform: scale(0.95); }
     </style>
 </head>
 <body>
@@ -113,9 +125,7 @@
                         <p class="npc-desc">幫助你解決困惑</p>
                     </div>
                 </div>
-                <div class="chat-iframe-container">
-                    <iframe id="npc-frame" src="https://gptmega.ntustmeg.com/#/login"></iframe>
-                </div>
+                <div class="chat-iframe-container"><iframe id="npc-frame" src="https://gptmega.ntustmeg.com/#/login"></iframe></div>
                 </div>
         <div id="tab1" class="tab-content">
             <div class="map-wrapper">
@@ -132,28 +142,41 @@
         </div>
         <div id="tab3" class="tab-content">
             <div style="padding: 20px;">
-                <div id="record-map" style="display:none; width: 100%; height: 250px; border-radius: 12px; margin-bottom: 20px; z-index: 1;"></div>
-                <div class="story-container" id="record-content" style="padding: 0;">
-                    <div class="locked-msg">尚無通關紀錄</div>
+                <div style="display:flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; justify-content: center;">
+                    <button onclick="saveProgress()" style="flex:1; background:#007bff; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.1); cursor:pointer;">💾 儲存進度</button>
+                    <label for="load-progress-file" style="flex:1; background:#fd7e14; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.1); cursor:pointer; text-align:center;">📂 讀取進度</label>
+                    <input type="file" id="load-progress-file" accept=".json,.txt" style="display:none;" onchange="loadProgress(event)">
+                    <button onclick="exportRecord()" style="flex:1; background:var(--accent-color); color:white; border:none; padding:10px; border-radius:8px; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.1); cursor:pointer;">📥 匯出紀錄</button>
                 </div>
+                <div id="record-map" style="display:none; width: 100%; height: 250px; border-radius: 12px; margin-bottom: 20px; z-index: 1;"></div>
+                <div class="story-container" id="record-content" style="padding: 0;"></div>
             </div>
         </div>
     </div>
+    
+    <div id="custom-modal-overlay" class="custom-modal-overlay">
+        <div class="custom-modal">
+            <div class="custom-modal-header" id="custom-modal-title">時空起點</div>
+            <div class="custom-modal-body" id="custom-modal-message"></div>
+            <div class="custom-modal-footer">
+                <button class="custom-btn custom-btn-cancel" id="custom-modal-btn-cancel" style="display:none;">取消</button>
+                <button class="custom-btn custom-btn-ok" id="custom-modal-btn-ok">確定</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         const gameStages = {"stage_1776696117411":{"id":"stage_1776696117411","name":"時空啟點","lat":24.94195,"lon":121.21896,"triggerRadius":150,"score":1,"hintTime":0.2,"hintImg":"https://i.ibb.co/Jjk9NtTN/def53b99-4fa9-4b50-9cd4-9dc3d0282c51.jpg","hintText":"AAAAAA","preludeTitle":"目標：時空啟點","preludeStory":"歡迎來到時空學園。最近，校園的各個角落出現了異常的時空波動，似乎有過去的記憶碎片正在干擾現實。我們需要你親自前往這些波動的「節點」，透過觀察現場環境來解開時空鎖鏈","preludeImg":"https://lh3.googleusercontent.com/sitesv/AA5AbUBeAvmMEFnPmuyWaJJMlRZK4ajLa1OZozK8ddq7VNlz_jyNScOqCCXzNPkQefY1C_F5TNxIOgdjCpyySkfzEHf4UGILBJE4o9pf39aoNQz53LtqyO1_lmQ7qs88FL4mwwiJE6VzRG0tzcsGV333qLJSKSFDdK8j8D3XKhEpfvJ3BerCwXe_dkJdVmVoG-55fGEje72T6RwgP6DjNJlZywqYQAQUyN4rEvNp=w1280","story":"這裡是時空的波動源頭，你發現牆上刻著一些模糊的符號，似乎暗示著過去發生的事件...","img":"https://lh3.googleusercontent.com/sitesv/AA5AbUBeAvmMEFnPmuyWaJJMlRZK4ajLa1OZozK8ddq7VNlz_jyNScOqCCXzNPkQefY1C_F5TNxIOgdjCpyySkfzEHf4UGILBJE4o9pf39aoNQz53LtqyO1_lmQ7qs88FL4mwwiJE6VzRG0tzcsGV333qLJSKSFDdK8j8D3XKhEpfvJ3BerCwXe_dkJdVmVoG-55fGEje72T6RwgP6DjNJlZywqYQAQUyN4rEvNp=w1280","puzzle":"觀察四周，請問最近的變電箱編號最後三碼是多少？","answer":"123","isEnd":false,"endStory":"","endImg":"","hasBranch":true,"branches":[{"text":"前往【記憶小徑】","nextStageId":"stage_1776696277977"},{"text":"前往【第三站：終焉守護者】","nextStageId":"stage_1776696384464"}],"nextStageId":null},"stage_1776696277977":{"id":"stage_1776696277977","name":"記憶小徑","lat":24.9427,"lon":121.2195,"triggerRadius":150,"score":1,"hintTime":0,"hintImg":"","hintText":"","preludeTitle":"目標：記憶小徑","preludeStory":"的謎題與故事\n這裡是時空的波動源頭，你發現牆上刻著一些模糊的符號，似乎暗示著過去發生的事","preludeImg":"https://lh3.googleusercontent.com/docsubipk/AP9E6xVKeabtDJVk-tqA_dzEdFWl-PodyzPlXeS4oerpc13DUfILe1H4sfohYzk2vVelCcnKr9_OLF8169yeRePgD1LhD-i771r5LjluauoXCCsbzwwpJDGPRNl3oMSl2WlzK2g","story":"你選擇了追尋過去的痕跡。根據儀器顯示，波動的下一站指向一條古老的巷弄，","img":"https://lh3.googleusercontent.com/docsubipk/AP9E6xVKeabtDJVk-tqA_dzEdFWl-PodyzPlXeS4oerpc13DUfILe1H4sfohYzk2vVelCcnKr9_OLF8169yeRePgD1LhD-i771r5LjluauoXCCsbzwwpJDGPRNl3oMSl2WlzK2g","puzzle":"這條巷弄的路標顏色是什麼？(兩個字)","answer":"AAA","isEnd":false,"endStory":"無論是第一關還是後續關卡，開始前一定會先顯示這個簡報畫面","endImg":"https://lh3.googleusercontent.com/sitesv/AA5AbUCDPqR43onAUSe5Qam9IUM_A-eNZBWpB_Ph6nceWtCqiIvFZhnGwG8tGtVjbVbAh1u_AhqngcAGmb-K_ddXB0yMXEY45_G2R_qQBS3pH_Od-XOlK1Jm4crKf7eNtdz3hP2ROO4pDCNzyRY2gDDGM2yLTCHrSyMWmfEmcz8eDOLdSRXV6nopiBY-vUX_jW814OkTbMvzfDPHbx_BHLhI3gsG4JHGxsZWphrQ=w1280","hasBranch":false,"branches":[],"nextStageId":"stage_1776696384464"},"stage_1776696384464":{"id":"stage_1776696384464","name":"第三站：終焉守護者","lat":24.9412,"lon":121.2205,"triggerRadius":211,"score":1,"hintTime":0,"hintImg":"https://i.ibb.co/GfWjz1kJ/0724.jpg","hintText":"aaaaaa","preludeTitle":"最終目標：第三站：終焉守護者","preludeStory":"你選擇了直接面對強大的能量來源。守護者所在的區域就在不遠處，這將是一場嚴峻的考驗。","preludeImg":"https://www.youtube.com/watch?v=hiUXHCcOVSA","story":"你選擇了直接面對強大的能量來源。守護者所在的區域就在不遠處，這將是一場嚴峻的考驗。","img":"https://lh3.googleusercontent.com/sitesv/AA5AbUDDUGoHEA-ZT9LteNEoEYNYZtEGCh7BG31Ph1PQSUiejcS_RmJN2aITaM4an75AU_7cQnwVVz634ti0hhW3ksrWBClbqN4hGpIMd_P9cNYCbooEwblNgFrTP5OTSz72AAA6TfqFqKlfPB22Yg7iSKAGhwj_2dqHx8pAndlukI_FooWmSLsBr3cifP7AOQmig2E-_vZKO1NUv4VUFef8keNtKULKuccV9vrO=w1280","puzzle":"請輸入通關密語：OPEN","answer":"OPEN","isEnd":true,"endStory":"所有的謎團都已解開，時空的裂縫逐漸閉合。你成功地守護了學園的和平！","endImg":"https://lh3.googleusercontent.com/sitesv/AA5AbUCUTqhhrtFSLy8YxLbB7ixfk81bmHI8WrIOwS6FnmHrTAHFIOlEKiUYuqqANttWzb-2DfWA7RN3VKoVgo4LukBd62MY8ybGrU75NUtP0KP9oLwV78K1ANSHIfRO7QXx14lYFGPZBj6sQe-27BnGaWcttqAC218ywHnsPDiIKSWl_D1iwNarudLGrOzPdQWvhOPj6u8g5pE7amAUmiVgqbhBBA_PPjzAWBJsXZY=w1280","hasBranch":false,"branches":[],"nextStageId":null}};
         let currentStageId = "stage_1776696117411";
         let currentPhase = "PRELUDE"; 
         let map = null, userMarker = null, targetMarker = null;
-        
         let clearedStagesRecord = []; 
         let recordMap = null, recordMarkers = [], recordLines = [], recordArrows = [];
-        
         let hintTimerInterval = null;
         let currentScore = 0;
         let totalMaxScore = 0;
         
-        // 修正：將所有關卡的分數（包含結局關卡）都加入總滿分計算中
         Object.values(gameStages).forEach(s => {
             totalMaxScore += (s.score !== undefined ? s.score : 1);
         });
@@ -164,12 +187,32 @@
             renderRecord(); 
         };
 
+        function showCustomAlert(message, title = "時空起點") {
+            document.getElementById('custom-modal-title').innerText = title;
+            document.getElementById('custom-modal-message').innerHTML = message;
+            document.getElementById('custom-modal-btn-cancel').style.display = 'none';
+            document.getElementById('custom-modal-btn-ok').onclick = closeCustomModal;
+            document.getElementById('custom-modal-overlay').classList.add('open');
+        }
+
+        function showCustomConfirm(message, onConfirm, title = "時空起點") {
+            document.getElementById('custom-modal-title').innerText = title;
+            document.getElementById('custom-modal-message').innerHTML = message;
+            document.getElementById('custom-modal-btn-cancel').style.display = 'block';
+            document.getElementById('custom-modal-btn-cancel').onclick = closeCustomModal;
+            document.getElementById('custom-modal-btn-ok').onclick = () => { 
+                closeCustomModal(); 
+                if(onConfirm) onConfirm(); 
+            };
+            document.getElementById('custom-modal-overlay').classList.add('open');
+        }
+
+        function closeCustomModal() { document.getElementById('custom-modal-overlay').classList.remove('open'); }
+
         function startGame() {
             const startScreen = document.getElementById('start-screen');
             startScreen.classList.add('fade-out');
-            setTimeout(() => {
-                startScreen.style.display = 'none';
-            }, 800);
+            setTimeout(() => { startScreen.style.display = 'none'; }, 800);
         }
 
         function showTab(index) {
@@ -200,7 +243,13 @@
 
         function getMediaHtml(url) {
             if (!url) return '';
-            const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+            let formattedUrl = url;
+            const imgMatch = formattedUrl.match(/#(d+),(d+),(d+),(d+)$/);
+            if (imgMatch) {
+                formattedUrl = formattedUrl.replace(/#d+,d+,d+,d+$/, '');
+            }
+            
+            const ytMatch = formattedUrl.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
             if (ytMatch) {
                 const vid = ytMatch[1];
                 return `<div style="position:relative; padding-bottom:56.25%; height:0; overflow:hidden; border-radius:12px; margin:20px 0; background:#000;">
@@ -208,7 +257,12 @@
                 </div>
                 <a href="${url}" target="_blank" style="display:block; text-align:center; background:#cc0000; color:white; padding:12px; border-radius:8px; text-decoration:none; font-weight:bold; margin-bottom:20px; box-shadow:0 4px 6px rgba(255,0,0,0.2);">🎬 點擊在 YouTube 開啟影片</a>`;
             }
-            return `<img src="${url}" class="puzzle-img" onerror="this.style.display='none';">`;
+            
+            if (imgMatch) {
+                const [_, x, y, w, h] = imgMatch;
+                return `<div style="width:100%; height:200px; margin:20px 0; border-radius:12px; border:1px solid var(--border-color); background-image:url('${formattedUrl}'); background-position:-${x}px -${y}px; background-size:auto; background-repeat:no-repeat;"></div>`;
+            }
+            return `<img src="${formattedUrl}" class="puzzle-img" onerror="this.style.display='none';">`;
         }
 
         function updateTargetDisplay() {
@@ -262,12 +316,13 @@
 
                 if (dist <= targetRadius && currentPhase === 'NAVIGATING') {
                     currentPhase = 'PUZZLE'; renderTaskContent();
-                    alert("✅ 抵達目標地點！任務內容已解鎖，請查看「任務」頁籤。"); showTab(2); 
+                    showCustomAlert("✅ 抵達目標地點！任務內容已解鎖，請查看「任務」頁籤。");
+                    showTab(2); 
                 } else if (dist > targetRadius && currentPhase === 'PUZZLE') {
                     currentPhase = 'NAVIGATING'; renderTaskContent(); 
                 }
             }, err => {
-                alert("⚠️ 定位失敗，請確認手機已開啟 GPS 且瀏覽器有位置權限。");
+                showCustomAlert("⚠️ 定位失敗，請確認手機已開啟 GPS 且瀏覽器有位置權限。");
                 btn.disabled = false; btn.innerText = "📍 重新檢查位置";
             }, { enableHighAccuracy: true, timeout: 10000 });
         }
@@ -299,7 +354,7 @@
                 if(timeLeft <= 0) {
                     clearInterval(hintTimerInterval);
                     let hintMedia = getMediaHtml(hintImg);
-                    hintDiv.innerHTML = `<div style="margin-top:20px; padding:20px; background:var(--bg-color); border:1px solid var(--border-color); border-radius:10px; animation:fadeIn 0.5s ease;"><h4 style="color:var(--text-color); margin-top:0; border-bottom:1px solid var(--border-color); padding-bottom:10px;">💡 關卡提示</h4>${hintMedia}<p style="color:var(--text-color); font-size:1em; margin-bottom:0; text-align:left;">${hintText || '無文字說明'}</p></div>`;
+                    hintDiv.innerHTML = `<div style="margin-top:20px; padding:20px; background:var(--bg-color); border:1px solid var(--border-color); border-radius:10px; animation:fadeIn 0.5s ease;"><h4 style="color:var(--text-color); margin-top:0; border-bottom:1px solid var(--border-color); padding-bottom:10px;">💡 關卡提示</h4>${hintMedia}<p style="color:var(--text-color); font-size:1em; margin-bottom:0; text-align:left;">${hintText || '無'}</p></div>`;
                 }
             }, 1000);
         }
@@ -315,12 +370,12 @@
             switch(currentPhase) {
                 case 'PRELUDE': {
                     const pMediaHtml = getMediaHtml(stage.preludeImg);
-                    container.innerHTML = `<div class="puzzle-box"><h2 class="story-title">📜 ${stage.preludeTitle}</h2>${pMediaHtml}<p class="story-text">${stage.preludeStory||'未設定說明'}</p><button class="submit-btn" style="margin-top:20px; font-size: 1.1em;" onclick="startNavigating()">確認任務，前往地圖定位出發</button></div>`;
+                    container.innerHTML = `<div class="puzzle-box"><h2 class="story-title">📜 ${stage.preludeTitle}</h2>${pMediaHtml}<p class="story-text">${stage.preludeStory||'無'}</p><button class="submit-btn" style="margin-top:20px; font-size: 1.1em;" onclick="startNavigating()">確認任務，前往地圖定位出發</button></div>`;
                     break;
                 }
                 case 'NAVIGATING': {
                     const navMediaHtml = getMediaHtml(stage.preludeImg);
-                    container.innerHTML = `<div class="puzzle-box"><h2 class="story-title">📜 ${stage.preludeTitle}</h2>${navMediaHtml}<p class="story-text">${stage.preludeStory||'未設定說明'}</p><div style="margin-top: 20px; padding: 15px; background: var(--bg-color); border: 1px solid var(--primary-color); border-radius: 8px; text-align: center;"><p style="margin: 0 0 10px 0; color: var(--text-color); font-weight: bold;">📍 導航中：請前往指定地點<br><span style="font-size:0.9em;font-weight:normal;opacity:0.8;">進入範圍 ${targetRadius} 公尺內，系統將自動解鎖現場任務</span></p><button class="btn-check" style="width:100%; padding:12px; font-size:1.05em;" onclick="showTab(1)">查看地圖指引</button></div></div>`;
+                    container.innerHTML = `<div class="puzzle-box"><h2 class="story-title">📜 ${stage.preludeTitle}</h2>${navMediaHtml}<p class="story-text">${stage.preludeStory||'無'}</p><div style="margin-top: 20px; padding: 15px; background: var(--bg-color); border: 1px solid var(--primary-color); border-radius: 8px; text-align: center;"><p style="margin: 0 0 10px 0; color: var(--text-color); font-weight: bold;">📍 導航中：請前往指定地點<br><span style="font-size:0.9em;font-weight:normal;opacity:0.8;">進入範圍 ${targetRadius} 公尺內，系統將自動解鎖現場任務</span></p><button class="btn-check" style="width:100%; padding:12px; font-size:1.05em;" onclick="showTab(1)">查看地圖指引</button></div></div>`;
                     break;
                 }
                 case 'PUZZLE': {
@@ -343,14 +398,14 @@
                     } else if(stage.nextStageId) {
                         optionsHtml = `<button class="branch-btn" onclick="selectBranch('${stage.nextStageId}')">繼續前進</button>`;
                     } else {
-                        optionsHtml = `<button class="branch-btn" onclick="alert('沒有設定後續關卡！')">已無後續關卡</button>`;
+                        optionsHtml = `<button class="branch-btn" onclick="showCustomAlert('沒有設定後續關卡！')">已無後續關卡</button>`;
                     }
                     container.innerHTML = `<div class="puzzle-box"><div class="success-banner">✨ 解謎成功！ (+${stage.score} 分)</div><p class="story-text">你順利解開了這個區域的祕密。接下來，你打算怎麼做？</p><div class="branch-options">${optionsHtml}</div></div>`;
                     break;
                 }
                 case 'END': {
                     const eMediaHtml = getMediaHtml(stage.endImg);
-                    container.innerHTML = `<div class="puzzle-box"><h2 style="color:var(--accent-color)">🎉 遊戲通關！</h2>${eMediaHtml}<p class="story-text" style="text-align:left;">${stage.endStory||'恭喜完成所有任務！'}</p><div style="background:var(--bg-color); color:var(--text-color); font-size:1.2em; font-weight:bold; padding:15px; border-radius:8px; margin:20px 0; border:1px solid var(--primary-color);">最終總得分：${currentScore} / ${totalMaxScore} 分</div><button class="submit-btn" style="margin-top:20px;" onclick="restartGame()">↺ 從頭再玩一次</button></div>`;
+                    container.innerHTML = `<div class="puzzle-box"><h2 style="color:var(--accent-color)">🎉 遊戲通關！</h2>${eMediaHtml}<p class="story-text" style="text-align:left;">${stage.endStory||'🎉 遊戲通關！'}</p><div style="background:var(--bg-color); color:var(--text-color); font-size:1.2em; font-weight:bold; padding:15px; border-radius:8px; margin:20px 0; border:1px solid var(--primary-color);">最終總得分：${currentScore} / ${totalMaxScore}</div><button class="submit-btn" style="margin-top:20px;" onclick="restartGame()">↺ 從頭再玩一次</button></div>`;
                     break;
                 }
             }
@@ -362,13 +417,13 @@
             
             if (clearedStagesRecord.length === 0) {
                 mapContainer.style.display = 'none';
-                container.innerHTML = '<div class="locked-msg" style="margin-top: 20vh;">尚無通關紀錄</div>';
+                container.innerHTML = `<div class="locked-msg" style="margin-top: 10vh;">尚無通關紀錄</div>`;
                 return;
             }
             
             mapContainer.style.display = 'block';
-            let html = `<div style="background:var(--primary-color); color:#fff; padding:15px; border-radius:10px; margin-bottom:20px; font-weight:bold; text-align:center; font-size:1.2em; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">目前總得分：${currentScore} / ${totalMaxScore} 分</div>`;
-            html += '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:2px solid var(--border-color); padding-bottom:10px;"><h2 class="story-title" style="margin:0; border:none; padding:0;">📖 冒險紀錄</h2><button onclick="exportRecord()" style="background:var(--accent-color); color:white; border:none; padding:8px 12px; border-radius:6px; font-weight:bold; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.1); transition:0.2s;">📥 匯出 (TXT)</button></div>';
+            let html = `<div style="background:var(--primary-color); color:#fff; padding:15px; border-radius:10px; margin-bottom:20px; font-weight:bold; text-align:center; font-size:1.2em; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">目前總得分：${currentScore} / ${totalMaxScore}</div>`;
+            html += '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom:2px solid var(--border-color); padding-bottom:10px;"><h2 class="story-title" style="margin:0; border:none; padding:0;">📖 冒險紀錄</h2></div>';
             
             clearedStagesRecord.forEach((record, index) => {
                 html += `<div class="puzzle-box" style="text-align: left; margin-bottom: 15px; padding: 15px; border-left: 5px solid var(--primary-color);">
@@ -399,10 +454,7 @@
 
             const bounds = [];
             clearedStagesRecord.forEach((record, i) => {
-                const marker = L.circleMarker([record.lat, record.lon], {
-                    radius: 8, fillColor: '#28a745', color: '#fff', weight: 2, fillOpacity: 1
-                }).addTo(recordMap).bindTooltip(`${i+1}. ${record.name}`, {permanent: true, direction: 'top'});
-                
+                const marker = L.circleMarker([record.lat, record.lon], { radius: 8, fillColor: '#28a745', color: '#fff', weight: 2, fillOpacity: 1 }).addTo(recordMap).bindTooltip(`${i+1}. ${record.name}`, {permanent: true, direction: 'top'});
                 recordMarkers.push(marker);
                 bounds.push([record.lat, record.lon]);
 
@@ -410,41 +462,29 @@
                     const prevRecord = clearedStagesRecord[i - 1];
                     const p1 = [prevRecord.lat, prevRecord.lon];
                     const p2 = [record.lat, record.lon];
-                    
                     const line = L.polyline([p1, p2], {color: '#007bff', weight: 3, opacity: 0.6, dashArray: '5, 5'}).addTo(recordMap);
                     recordLines.push(line);
-
                     const point1 = recordMap.latLngToLayerPoint(p1);
                     const point2 = recordMap.latLngToLayerPoint(p2);
                     const angle = Math.atan2(point2.y - point1.y, point2.x - point1.x) * 180 / Math.PI;
-                    
                     const midLat = (p1[0] + p2[0]) / 2;
                     const midLon = (p1[1] + p2[1]) / 2;
-
-                    const arrowIcon = L.divIcon({
-                        html: `<div style="transform: rotate(${angle}deg);">➤</div>`,
-                        className: 'arrow-icon',
-                        iconSize: [20, 20],
-                        iconAnchor: [10, 10]
-                    });
-                    
+                    const arrowIcon = L.divIcon({ html: `<div style="transform: rotate(${angle}deg);">➤</div>`, className: 'arrow-icon', iconSize: [20, 20], iconAnchor: [10, 10] });
                     const arrowMarker = L.marker([midLat, midLon], {icon: arrowIcon}).addTo(recordMap);
                     recordArrows.push(arrowMarker);
                 }
             });
 
-            if (bounds.length > 0) {
-                recordMap.fitBounds(bounds, { padding: [30, 30] });
-            }
+            if (bounds.length > 0) { recordMap.fitBounds(bounds, { padding: [30, 30] }); }
         }
 
         function exportRecord() {
             let content = "=== 時空起點 - 冒險紀錄 ===\n";
-            content += `最終總得分：${currentScore} / ${totalMaxScore} 分\n\n`;
+            content += `最終總得分：${currentScore} / ${totalMaxScore}\n\n`;
             
             clearedStagesRecord.forEach((r, i) => {
                 content += `[第 ${i+1} 關] ${r.name} (${r.timestamp})\n`;
-                content += `前情提要：${r.preludeStory || '無'}\n`;
+                content += `簡報：${r.preludeStory || '無'}\n`;
                 content += `謎題：${r.puzzle || '無'}\n`;
                 content += `答案：${r.answer || '無'} (得分:${r.score})\n\n`;
             });
@@ -454,16 +494,69 @@
             const a = document.createElement('a');
             a.style.display = 'none';
             a.href = url;
-            a.download = "時空起點_遊戲紀錄.txt";
+            a.download = "時空起點_Record.txt";
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             setTimeout(() => URL.revokeObjectURL(url), 100);
         }
 
+        function saveProgress() {
+            const saveData = {
+                currentStageId: currentStageId,
+                currentPhase: currentPhase,
+                currentScore: currentScore,
+                clearedStagesRecord: clearedStagesRecord
+            };
+            const dataStr = JSON.stringify(saveData);
+            const blob = new Blob([dataStr], {type: "application/json;charset=utf-8"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = "時空起點_SaveData.json";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 100);
+        }
+
+        function loadProgress(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed.currentStageId && parsed.currentPhase) {
+                        currentStageId = parsed.currentStageId;
+                        currentPhase = parsed.currentPhase;
+                        currentScore = parsed.currentScore || 0;
+                        clearedStagesRecord = parsed.clearedStagesRecord || [];
+                        
+                        clearInterval(hintTimerInterval);
+                        updateTargetDisplay();
+                        renderTaskContent();
+                        renderRecord();
+                        showCustomAlert("✅ 進度讀取成功，歡迎回來！");
+                        showTab(2);
+                    } else {
+                        showCustomAlert("❌ 檔案格式錯誤，無法讀取進度。");
+                    }
+                } catch(err) {
+                    showCustomAlert("❌ 檔案格式錯誤，無法讀取進度。");
+                }
+                event.target.value = ''; 
+            };
+            reader.readAsText(file);
+        }
+
         function startNavigating() {
             currentPhase = "NAVIGATING"; updateTargetDisplay(); renderTaskContent(); showTab(1);
-            setTimeout(() => { alert("🗺️ 已將目標地點標註在地圖上，正在讀取您的位置..."); updateGPS(); }, 300);
+            setTimeout(() => { 
+                showCustomAlert("🗺️ 已將目標地點標註在地圖上，正在讀取您的位置..."); 
+                updateGPS(); 
+            }, 300);
         }
 
         function checkAnswer() {
@@ -477,49 +570,35 @@
                 currentScore += stage.score;
 
                 clearedStagesRecord.push({
-                    name: stage.name,
-                    preludeStory: stage.preludeStory,
-                    puzzle: stage.puzzle,
+                    name: stage.name, preludeStory: stage.preludeStory, puzzle: stage.puzzle,
                     answer: stage.answer || val.toUpperCase() || '無',
-                    score: stage.score,
-                    lat: stage.lat,
-                    lon: stage.lon,
-                    timestamp: timeString
+                    score: stage.score, lat: stage.lat, lon: stage.lon, timestamp: timeString
                 });
                 renderRecord(); 
 
-                if (stage.isEnd) {
-                    currentPhase = 'END'; 
-                } else {
-                    currentPhase = 'CLEARED'; 
-                }
+                if (stage.isEnd) { currentPhase = 'END'; } else { currentPhase = 'CLEARED'; }
                 updateTargetDisplay();
                 renderTaskContent(); 
-            } else { alert("❌ 答案不正確，請再仔細觀察四周！"); }
+            } else { showCustomAlert("❌ 答案不正確，請再仔細觀察四周！"); }
         }
 
         function selectBranch(nextStageId) {
-            if(!gameStages[nextStageId]) { alert("錯誤：找不到關卡資料"); return;}
+            if(!gameStages[nextStageId]) { showCustomAlert("Error"); return;}
             currentStageId = nextStageId;
             currentPhase = 'PRELUDE'; 
-            updateTargetDisplay(); 
-            renderTaskContent(); 
-            showTab(2); 
-            setTimeout(() => { alert("新地點的任務簡報已更新，請先閱讀前情提要！"); }, 100);
+            updateTargetDisplay(); renderTaskContent(); showTab(2); 
+            setTimeout(() => { showCustomAlert("新地點的任務簡報已更新，請先閱讀前情提要！"); }, 300);
         }
 
         function restartGame() {
-            if(confirm('確定要放棄當前進度並從頭開始遊戲嗎？這將會清空所有紀錄。')) {
+            showCustomConfirm('確定要放棄當前進度並從頭開始遊戲嗎？這將會清空所有紀錄。', () => {
                 currentStageId = "stage_1776696117411";
                 currentPhase = 'PRELUDE';
                 clearedStagesRecord = []; 
                 currentScore = 0;
-                updateTargetDisplay();
-                renderTaskContent();
-                renderRecord(); 
-                showTab(2);
-                setTimeout(() => { alert("遊戲已重置，請閱讀起始任務簡報！"); }, 100);
-            }
+                updateTargetDisplay(); renderTaskContent(); renderRecord(); showTab(2);
+                setTimeout(() => { showCustomAlert("遊戲已重置，請閱讀起始任務簡報！"); }, 300);
+            });
         }
     </script>
 </body>
