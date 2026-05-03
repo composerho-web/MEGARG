@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>臨時文字編輯區</title>
+    <!-- 引入 Tailwind CSS 來快速美化排版 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Phosphor Icons 提供工具列的圖示 -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    
+    <style>
+        /* 針對編輯區的基本排版設定，讓它看起來像一個真正的編輯器 */
+        #editor:focus {
+            outline: none; /* 移除點擊時的預設黑框 */
+        }
+        #editor ul {
+            list-style-type: disc;
+            padding-left: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        #editor ol {
+            list-style-type: decimal;
+            padding-left: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        #editor h2 {
+            font-size: 1.25em;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            color: #1f2937;
+        }
+        #editor p {
+            margin-bottom: 0.5rem;
+            line-height: 1.6;
+        }
+        
+        /* 提示使用者這個區域是可編輯的佔位符 (可選) */
+        [contenteditable]:empty:before {
+            content: attr(data-placeholder);
+            color: #9ca3af;
+            pointer-events: none;
+            display: block; /* 確保佔位符正常顯示 */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-4 md:p-8 flex justify-center items-start pt-20 min-h-screen font-sans">
+
+    <!-- 編輯器主體容器 -->
+    <div class="w-full max-w-3xl bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+        
+        <!-- 工具列 (Toolbar) -->
+        <div class="bg-gray-50 border-b border-gray-200 p-2 flex gap-1 flex-wrap items-center">
+            <button onclick="formatText('bold')" class="p-2 hover:bg-gray-200 rounded text-gray-700 transition-colors" title="粗體">
+                <i class="ph ph-text-b text-lg"></i>
+            </button>
+            <button onclick="formatText('italic')" class="p-2 hover:bg-gray-200 rounded text-gray-700 transition-colors" title="斜體">
+                <i class="ph ph-text-italic text-lg"></i>
+            </button>
+            <button onclick="formatText('underline')" class="p-2 hover:bg-gray-200 rounded text-gray-700 transition-colors" title="底線">
+                <i class="ph ph-text-underline text-lg"></i>
+            </button>
+            
+            <div class="w-px h-5 bg-gray-300 my-auto mx-1"></div>
+            
+            <button onclick="formatText('insertUnorderedList')" class="p-2 hover:bg-gray-200 rounded text-gray-700 transition-colors" title="項目符號">
+                <i class="ph ph-list-bullets text-lg"></i>
+            </button>
+            <button onclick="formatText('insertOrderedList')" class="p-2 hover:bg-gray-200 rounded text-gray-700 transition-colors" title="編號列表">
+                <i class="ph ph-list-numbers text-lg"></i>
+            </button>
+            
+            <div class="w-px h-5 bg-gray-300 my-auto mx-1"></div>
+            
+            <button onclick="formatText('removeFormat')" class="p-2 hover:bg-gray-200 rounded text-gray-700 transition-colors" title="清除格式">
+                <i class="ph ph-eraser text-lg"></i>
+            </button>
+
+            <!-- 恢復預設按鈕 -->
+            <button onclick="resetEditor()" class="p-2 hover:bg-red-50 text-red-600 rounded ml-auto text-sm flex items-center gap-1 transition-colors border border-transparent hover:border-red-200">
+                <i class="ph ph-arrow-counter-clockwise"></i> 恢復預設格式
+            </button>
+        </div>
+
+        <!-- 編輯區 (Editor Area) -->
+        <!-- contenteditable="true" 是讓這個 div 變成可以打字的核心屬性 -->
+        <div id="editor" class="p-6 min-h-[400px] text-gray-800 bg-white" contenteditable="true" data-placeholder="在這裡輸入內容...">
+            <!-- 這裡放入你希望的「預設格式」 -->
+            <h2>請在此整理你的奏章資料，寫成300字內格式不拘的終極對策奏疏內容，貼到下方指定位置上奏</h2>
+            <p><br></p>
+        </div>
+        
+        <!-- 底部狀態列 -->
+        <div class="bg-gray-50 border-t border-gray-200 px-4 py-2 text-xs text-gray-500 text-right flex justify-between">
+            <span>純前端運作，無存檔功能</span>
+            <span id="charCount">0 字</span>
+        </div>
+    </div>
+
+    <script>
+        const editor = document.getElementById('editor');
+        const charCount = document.getElementById('charCount');
+        
+        // 1. 儲存初始的 HTML 內容，用於「恢復預設」功能
+        const defaultContent = editor.innerHTML;
+
+        // 2. 執行文字格式化的函數
+        function formatText(command, value = null) {
+            // 使用內建的 execCommand 進行簡單的富文本編輯
+            document.execCommand(command, false, value);
+            // 執行後讓編輯區保持焦點
+            editor.focus();
+        }
+
+        // 3. 恢復預設格式的函數
+        function resetEditor() {
+            // 由於資料不會存檔，給予一個簡單的確認提示避免誤觸
+            if (confirm('確定要清除所有內容並恢復預設格式嗎？（此動作無法復原）')) {
+                editor.innerHTML = defaultContent;
+                updateCharCount();
+            }
+        }
+
+        // 4. 即時字數統計 (簡單計算文字長度)
+        function updateCharCount() {
+            const text = editor.innerText || editor.textContent;
+            // 移除多餘的空白後計算字數
+            const count = text.replace(/\s+/g, '').length;
+            charCount.textContent = count + ' 字';
+        }
+
+        // 監聽編輯區的輸入事件來更新字數
+        editor.addEventListener('input', updateCharCount);
+        
+        // 初始化計算一次字數
+        updateCharCount();
+    </script>
+</body>
+</html>
