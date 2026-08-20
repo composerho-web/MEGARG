@@ -392,72 +392,104 @@
         let chosenVoice = null;
         let ttsUnlocked = false;        // 手機需要在使用者手勢中先「解鎖」語音引擎
         let ttsWarned = false;
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         function pickVoice() {
             if (!('speechSynthesis' in window)) return;
             const voices = window.speechSynthesis.getVoices();
             if (!voices.length) return;
             chosenVoice = null;
-            // 優先使用設計者指定的語音
-            if (CONFIG.tts && CONFIG.tts.voice) {
-                chosenVoice = voices.find(v => v.name === CONFIG.tts.voice);
-            }
-            // 自動偵測：退回中文語音
-            if (!chosenVoice) chosenVoice = voices.find(v => /zh|cmn|Chinese|Taiwan|Mandarin|Hant|Hans/i.test(v.lang + '' + v.name));
-            // 再退回系統預設
+            if (CONFIG.tts && CONFIG.tts.voice) chosenVoice = voices.find(v => v.name === CONFIG.tts.voice);
+            if (!chosenVoice) chosenVoice = voices.find(v => /zh|cmn|Chinese|Taiwan|Mandarin|Hant|Hans/i.test((v.lang||'') + (v.name||'')));
             if (!chosenVoice) chosenVoice = voices.find(v => v.default) || voices[0];
         }
         if ('speechSynthesis' in window) {
             pickVoice();
             window.speechSynthesis.onvoiceschanged = pickVoice;
-            // 有些瀏覽器 getVoices() 一開始是空的，稍後再抓一次
             setTimeout(pickVoice, 300);
             setTimeout(pickVoice, 1200);
         }
-        // 手機解鎖：在使用者第一次點擊/觸碰時，播一段極短的靜音把語音引擎啟動
+        // 手機解鎖：在使用者手勢中，播一段真正的短語音把引擎啟動（iOS 需要真實可發聲的 utterance）
         function unlockTTS() {
             if (ttsUnlocked || !('speechSynthesis' in window)) return;
+            if (!ttsOn) return;   // 沒開語音就不用解鎖
             try {
-                const u = new SpeechSynthesisUtterance(' ');
-                u.volume = 0;              // 靜音，玩家不會聽到
+                pickVoice();
+                window.speechSynthesis.cancel();
+                window.speechSynthesis.resume();
+                // iOS：用一個幾乎聽不到、極短的真實 utterance 觸發引擎授權
+                const u = new SpeechSynthesisUtterance('。');
                 if (chosenVoice) u.voice = chosenVoice;
                 u.lang = chosenVoice ? chosenVoice.lang : 'zh-TW';
-                window.speechSynthesis.resume();
+                u.volume = 0.01;
+                u.rate = 2;
+                u.onend = () => { ttsUnlocked = true; hideTtsBanner(); };
+                u.onerror = () => { /* 仍標記已嘗試，避免卡住 */ ttsUnlocked = true; hideTtsBanner(); };
                 window.speechSynthesis.speak(u);
-                ttsUnlocked = true;
-                pickVoice();               // 解鎖後語音清單通常就抓得到了
+                // 保險：即使 onend 沒觸發也標記
+                setTimeout(() => { ttsUnlocked = true; hideTtsBanner(); }, 400);
             } catch(e){}
         }
-        // 任何使用者手勢都嘗試解鎖（只做一次）
-        ['touchend','pointerdown','click','keydown'].forEach(evt => {
-            document.addEventListener(evt, unlockTTS, { once: false, passive: true });
+        // 任何使用者手勢都嘗試解鎖
+        ['touchend','pointerup','click','keydown'].forEach(evt => {
+            document.addEventListener(evt, unlockTTS, { passive: true });
         });
+
+        // 語音開啟橫幅（未解鎖前提示玩家點一下）
+        function showTtsBanner() {
+            if (!ttsOn) return;
+            if (document.getElementById('ttsBanner')) return;
+            const b = document.createElement('div');
+            b.id = 'ttsBanner';
+            b.textContent = '🔊 點這裡開啟語音朗讀';
+            b.style.cssText = 'position:fixed;left:50%;bottom:80px;transform:translateX(-50%);background:var(--send-btn);color:#fff;padding:10px 18px;border-radius:22px;font-size:14px;z-index:150;box-shadow:0 4px 16px rgba(0,0,0,.25);cursor:pointer;';
+            b.onclick = () => { unlockTTS(); };
+            document.body.appendChild(b);
+        }
+        function hideTtsBanner() {
+            const b = document.getElementById('ttsBanner');
+            if (b) b.remove();
+        }
 
         function speak(text) {
             if (!ttsOn || !('speechSynthesis' in window)) return;
             if (!chosenVoice) pickVoice();
-            try { window.speechSynthesis.resume(); } catch(e){}
-            window.speechSynthesis.cancel();
             const clean = text.replace(/https?:\S+/g, '').replace(/[#*_>`]/g, '');
             if (!clean.trim()) return;
+            // 尚未解鎖：顯示橫幅請玩家點一下，並先記住這句稍後補播
+            if (!ttsUnlocked) {
+                showTtsBanner();
+                pendingSpeak = clean;
+                return;
+            }
+            doSpeak(clean);
+        }
+        let pendingSpeak = null;
+        function doSpeak(clean) {
+            try { window.speechSynthesis.resume(); } catch(e){}
+            window.speechSynthesis.cancel();
             const u = new SpeechSynthesisUtterance(clean);
             if (chosenVoice) u.voice = chosenVoice;
             u.lang = chosenVoice ? chosenVoice.lang : 'zh-TW';
             u.rate = (CONFIG.tts && CONFIG.tts.rate) || 1;
             u.pitch = (CONFIG.tts && CONFIG.tts.pitch) || 1;
             u.volume = 1;
-            // 若尚未透過手勢解鎖（手機常見），提示玩家點一下畫面
-            if (!ttsUnlocked && !ttsWarned) {
-                ttsWarned = true;
-                showTip('若聽不到語音，請先點一下畫面任意處以開啟語音');
-            }
             window.speechSynthesis.speak(u);
         }
+        // 解鎖完成後，若有等待中的語句就補播
+        function flushPendingSpeak() {
+            if (ttsUnlocked && pendingSpeak) {
+                const t = pendingSpeak; pendingSpeak = null;
+                doSpeak(t);
+            }
+        }
+        setInterval(flushPendingSpeak, 500);
+
         function toggleTTS() {
             ttsOn = !ttsOn;
             const label = document.getElementById('menuTtsLabel');
             if (label) label.textContent = '語音朗讀：' + (ttsOn ? '開' : '關');
             if (ttsOn) { unlockTTS(); }   // 開啟時剛好是使用者點擊，順便解鎖
-            else if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+            else { if ('speechSynthesis' in window) window.speechSynthesis.cancel(); hideTtsBanner(); pendingSpeak = null; }
         }
 
         // 語音輸入
@@ -812,15 +844,15 @@
                 setTimeout(async () => {
                     loadingDiv.classList.add('hidden');
                     if (gpsArrivalMsg) {
+                        speak(gpsArrivalMsg);
                         await appendMessage('model', gpsArrivalMsg);
                         chatHistory.push({ role: "model", parts: [{ text: gpsArrivalMsg }] });
                         logMessage('npc', CONFIG.npcName, gpsArrivalMsg);
-                        speak(gpsArrivalMsg);
                     }
+                    speak(matchedRule.content);
                     await appendMessage('model', matchedRule.content, imagesToShow);
                     chatHistory.push({ role: "model", parts: [{ text: matchedRule.content }] });
                     logMessage('npc', CONFIG.npcName, matchedRule.content);
-                    speak(matchedRule.content);
                     sendBtn.disabled = (currentTurns >= CONFIG.maxTurns);
                     userInput.focus();
                     if (proactivePending && currentTurns < CONFIG.maxTurns) {
@@ -921,15 +953,15 @@
             const botReply = result.candidates[0].content.parts[0].text;
             // 功能6：先送出抵達引導語 (固定文字)
             if (gpsArrivalMsg) {
+                speak(gpsArrivalMsg);   // 先發聲，不等打字機動畫
                 await appendMessage('model', gpsArrivalMsg);
                 chatHistory.push({ role: "model", parts: [{ text: gpsArrivalMsg }] });
                 logMessage('npc', CONFIG.npcName, gpsArrivalMsg);
-                speak(gpsArrivalMsg);
             }
+            speak(botReply);            // 先發聲，不等打字機動畫跑完
             await appendMessage('model', botReply, imagesToShow);
             chatHistory.push({ role: "model", parts: [{ text: botReply }] });
             logMessage('npc', CONFIG.npcName, botReply);   // 功能5：記錄 NPC 發言
-            speak(botReply);
         }
     </script>
 </body>
